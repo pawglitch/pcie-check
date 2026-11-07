@@ -1,0 +1,18 @@
+=== NVIDIA GeForce RTX 5080  (GPU 0, 00000000:01:00.0) ===
+Max for this card + slot: Gen4 x16
+Before: PCIe replays = 0
+Running 1-minute test...
+
+Bandwidth  host->GPU:  24.4 GB/s   GPU->host:  24.9 GB/s
+  (typical: Gen3x8/Gen4x4 ~6.5 | Gen3x16/Gen4x8/Gen5x4 ~12-13 | Gen4x16/Gen5x8 ~25 | Gen5x16 ~50)
+  ...1230 round trips, 0 mismatches, ~0 min left
+Integrity: 1230 round trips, 1.32 TB moved, 0 mismatched transfers
+Link under load: Gen4 x16  (max Gen4 x16)
+After:  PCIe replays = 0
+Windows event log since start: no WHEA or NVIDIA driver errors
+
+=== VERDICT ===
+PASS  full speed, zero errors, zero corruption
+
+Context: RTX 5080 (a Gen5 card) in a B650 board whose x16 slot is Gen4, so Gen4 x16 is the max.
+Run on Windows 11, driver 621.01, PyTorch cu128, Python 3.14.
