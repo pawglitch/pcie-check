@@ -1,0 +1,19 @@
+pcie-check v0.2.0  (Windows, 2026-11-07 16:38)
+=== NVIDIA GeForce RTX 5080  (GPU 0, 00000000:01:00.0) ===
+Max for this card + slot: Gen4 x16   (card Gen5, slot/host Gen4)
+Before: replays=0
+Running 2-minute test via host...
+
+Bandwidth  host->GPU:  28.4 GB/s   GPU->host:  27.2 GB/s
+  ...1384 round trips, 0 mismatches, ~1 min left
+  ...2774 round trips, 0 mismatches, ~0 min left
+Integrity: 2774 round trips, 2.98 TB moved, 0 mismatched transfers
+Link under load: Gen4 x16  (max Gen4 x16)
+After:  replays=0
+Windows event log since start: no WHEA or NVIDIA driver errors
+
+=== VERDICT ===
+PASS  full speed, zero errors, zero corruption
+
+Context: RTX 5080 (Gen5 card) in a B650 board's Gen4 x16 slot, Windows 11, PyTorch cu128.
+28.4 GB/s is 90% of the ~31.5 GB/s a Gen4 x16 link carries.

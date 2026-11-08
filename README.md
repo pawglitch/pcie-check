@@ -17,32 +17,34 @@ PCIe has CRC and automatic retransmit on every packet, so a bad cable almost nev
 
 ---
 
-## Linux
+## Install
 
-Requires `nvidia-smi` and Docker with the NVIDIA container toolkit (any Vast.ai host already has both). The test runs inside the `pytorch/pytorch` image, so nothing gets installed on the host.
+One file: `pcie-check.py`. It needs `nvidia-smi` (comes with the driver) and Python 3. The transfer test needs PyTorch with CUDA. It uses the PyTorch of the Python you run it with; on Linux it falls back to a `pytorch/pytorch` Docker container (any Vast.ai host already has Docker and the NVIDIA toolkit). Nothing else needs installing.
+
+```
+pip install torch --index-url https://download.pytorch.org/whl/cu128   # cu128+ for RTX 50-series
+```
+
+## Run
 
 ```bash
-sudo bash linux/pcie-check.sh [gpu_index] [minutes]
-sudo bash linux/pcie-check.sh 1 15      # GPU 1, 15-minute soak
+sudo python3 pcie-check.py --list          # GPUs and their links
+sudo python3 pcie-check.py 1 15            # GPU 1, 15-minute soak
+sudo python3 pcie-check.py all 5           # every GPU, one after another, with a summary
+sudo python3 pcie-check.py 0 10 --json r.json
 ```
 
-Use a different image with `PCIE_CHECK_IMAGE=...`. The first run pulls the image (a few GB).
+On Windows use `py` instead of `sudo python3`, or double-click `RUN-pcie-check.cmd`. It lists the GPUs, asks which one (or `all`) and how many minutes.
 
-## Windows
+`sudo` on Linux is only needed for the kernel log and AER counters. Results always go to `pcie-check-result.txt` next to the script (`--log ''` turns that off), and `--json` writes a machine-readable copy.
 
-Requires Python 3 and PyTorch with CUDA:
+| Option | |
+|---|---|
+| `--runner host\|docker` | force where the transfer test runs (default: host PyTorch, else Docker) |
+| `--image IMG` | Docker image (default `pytorch/pytorch:latest`, or `$PCIE_CHECK_IMAGE`) |
+| `--size-mb N` | transfer size, default 512 MiB |
 
-```
-py -m pip install torch --index-url https://download.pytorch.org/whl/cu128
-```
-
-(cu128 or newer is needed for RTX 50-series.) Then double-click `windows/RUN-pcie-check.cmd`. It asks which GPU and how many minutes, or run it directly:
-
-```
-py windows\pcie-check.py [gpu_index] [minutes]
-```
-
-Results are also saved to `pcie-check-result.txt` next to the script.
+The transfer test runs in a child process pinned to the GPU under test. If the GPU falls off the bus, the child dies but the script still reads the counters and logs and reports FAIL.
 
 ---
 
@@ -53,6 +55,8 @@ Results are also saved to `pcie-check-result.txt` next to the script.
 | **PASS** | Full speed, zero replays, zero logged errors, zero mismatches | Use it |
 | **WARN** — replays / AER / WHEA went up | Link is marginal: data got through, but only because of retries | Force that slot one gen lower in BIOS (e.g. Gen5 → Gen4) and retest. If it still warns, replace the riser/adapter |
 | **WARN** — trained below max | Link came up narrower or slower than the card supports | Expected for M.2 adapters (always x4) and narrower slots. Otherwise: reseat, or the riser is bad |
+| **WARN** — width changed during test | Lanes dropped out under load | Bad connection. Reseat or replace the riser |
+| **WARN** — bandwidth low for the link | Under 60% of what the negotiated link carries (75–85% is normal) | Shared chipset uplink, a CPU/NUMA placement issue, or a bad adapter |
 | **FAIL** — mismatches | Corrupted data made it through | Don't use it |
 | **FAIL** — crashed | GPU dropped off the bus mid-test | Don't use it; check `dmesg` / Event Viewer |
 
@@ -73,13 +77,14 @@ The card limits this too: RTX 20-series is Gen3, 30/40-series is Gen4, 50-series
 
 ## Example
 
-RTX 5080 straight in a Gen4 x16 slot, 1-minute run ([full output](examples/rtx5080-gen4x16-slot-windows.txt)):
+RTX 5080 straight in a Gen4 x16 slot, 2-minute run ([full output](examples/rtx5080-gen4x16-slot-windows-v0.2.txt)):
 
 ```
-Bandwidth  host->GPU:  24.4 GB/s   GPU->host:  24.9 GB/s
-Integrity: 1230 round trips, 1.32 TB moved, 0 mismatched transfers
+Max for this card + slot: Gen4 x16   (card Gen5, slot/host Gen4)
+Bandwidth  host->GPU:  28.4 GB/s   GPU->host:  27.2 GB/s
+Integrity: 2774 round trips, 2.98 TB moved, 0 mismatched transfers
 Link under load: Gen4 x16  (max Gen4 x16)
-After:  PCIe replays = 0
+After:  replays=0
 Windows event log since start: no WHEA or NVIDIA driver errors
 
 === VERDICT ===
@@ -91,6 +96,10 @@ PASS  full speed, zero errors, zero corruption
 - NVIDIA GPUs only (uses `nvidia-smi` and CUDA).
 - Linux AER counters only appear if the kernel and firmware expose AER; if they don't, the script says `n/a` and relies on the replay counter.
 - It tests the link, not the GPU itself — use gpu-burn / OCCT / MATS for VRAM and core stability.
+
+## Tests
+
+`python3 -m unittest discover -s tests -v` runs the controller against a fake `nvidia-smi` and a stub worker (pass, replays, corruption, crash, slow bandwidth, narrow link, lanes dropping, all-GPU mode). No GPU needed; CI runs it on every push.
 
 ## License
 

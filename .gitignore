@@ -1,3 +1,4 @@
 pcie-check-result.txt
+pcie-check-result.json
 __pycache__/
 *.pyc
